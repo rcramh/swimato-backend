@@ -91,3 +91,43 @@ export interface SessionRepository {
   ping(): Promise<void>;
   close(): Promise<void>;
 }
+
+/* ---------------------------------- restaurant menus */
+
+export interface RestaurantSummary {
+  id: string;
+  name: string;
+  city: string;
+  areaName: string;
+  cuisines: string[];
+}
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string | null;
+  imageId: string | null;
+  isVeg: boolean;
+  // Integer paise, never floating rupees, so totals cannot drift.
+  pricePaise: number;
+  rating: number | null;
+  ratingCount: number | null;
+}
+
+export interface MenuCategory {
+  id: string;
+  title: string;
+  items: MenuItem[];
+}
+
+export interface RestaurantMenu {
+  restaurant: RestaurantSummary;
+  categories: MenuCategory[];
+}
+
+export interface MenuRepository {
+  /** Categories and items in display order, or null if none is stored. */
+  findByRestaurantId(restaurantId: string): Promise<RestaurantMenu | null>;
+  ping(): Promise<void>;
+  close(): Promise<void>;
+}

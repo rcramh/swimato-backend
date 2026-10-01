@@ -34,7 +34,7 @@ src/
   middlewares/           request context/logging, auth, CSRF origin check, rate limits, errors
   errors/                AppError hierarchy
   logger/                pino logger + per-request async context
-  database/              MongoDB connection (optional)
+  database/              MongoDB connection (optional); seed/ holds menu data until it moves to Postgres
   docs/                  OpenAPI document
 tests/                   API and unit tests
 ```

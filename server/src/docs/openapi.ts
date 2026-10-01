@@ -78,13 +78,63 @@ export const openApiDocument = {
       "Every error has the shape { success: false, error: { code, message, details? }, requestId }; branch on `code`, not `message`.",
   },
   servers: [{ url: API_PREFIX }],
-  tags: [{ name: "Auth" }, { name: "Admin" }],
+  tags: [{ name: "Auth" }, { name: "Restaurants" }, { name: "Admin" }],
   components: {
     securitySchemes: {
       accessCookie: { type: "apiKey", in: "cookie", name: ACCESS_COOKIE },
       refreshCookie: { type: "apiKey", in: "cookie", name: REFRESH_COOKIE },
     },
     schemas: {
+      RestaurantSummary: {
+        type: "object",
+        required: ["id", "name", "city", "areaName", "cuisines"],
+        properties: {
+          id: { type: "string", example: "47120" },
+          name: { type: "string" },
+          city: { type: "string" },
+          areaName: { type: "string" },
+          cuisines: { type: "array", items: { type: "string" } },
+        },
+      },
+      MenuItem: {
+        type: "object",
+        required: [
+          "id",
+          "name",
+          "description",
+          "imageId",
+          "isVeg",
+          "pricePaise",
+          "rating",
+          "ratingCount",
+        ],
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          description: { type: ["string", "null"] },
+          imageId: {
+            type: ["string", "null"],
+            description: "Swiggy CDN image id",
+          },
+          isVeg: { type: "boolean" },
+          pricePaise: {
+            type: "integer",
+            description: "Price in paise (₹1 = 100)",
+            example: 18900,
+          },
+          rating: { type: ["number", "null"], minimum: 0, maximum: 5 },
+          ratingCount: { type: ["integer", "null"] },
+        },
+      },
+      MenuCategory: {
+        type: "object",
+        required: ["id", "title", "items"],
+        properties: {
+          id: { type: "string" },
+          title: { type: "string" },
+          items: { type: "array", items: ref("MenuItem") },
+        },
+      },
       User: {
         type: "object",
         required: ["id", "name", "email", "role", "createdAt"],
@@ -228,6 +278,51 @@ export const openApiDocument = {
         summary: "The signed-in user",
         security: [{ accessCookie: [] }],
         responses: { 200: userEnvelope, 401: unauthorized },
+      },
+    },
+    "/restaurants/{restaurantId}/menu": {
+      get: {
+        tags: ["Restaurants"],
+        summary: "A restaurant's menu, grouped into categories (public)",
+        description:
+          "Until every restaurant has its own menu, a restaurant without one gets the sample menu of restaurant 47120, with `isSample: true` and `menuOf` naming the real owner. Cacheable for 5 minutes.",
+        parameters: [
+          {
+            name: "restaurantId",
+            in: "path",
+            required: true,
+            schema: { type: "string", pattern: "^\\d{1,12}$" },
+          },
+        ],
+        responses: {
+          200: {
+            description: "The menu",
+            content: json({
+              type: "object",
+              required: ["success", "data"],
+              properties: {
+                success: { const: true },
+                data: {
+                  type: "object",
+                  required: [
+                    "restaurantId",
+                    "isSample",
+                    "menuOf",
+                    "categories",
+                  ],
+                  properties: {
+                    restaurantId: { type: "string" },
+                    isSample: { type: "boolean" },
+                    menuOf: ref("RestaurantSummary"),
+                    categories: { type: "array", items: ref("MenuCategory") },
+                  },
+                },
+              },
+            }),
+          },
+          400: validation,
+          404: errorResponse("No menu available", [ERROR_CODES.MENU_NOT_FOUND]),
+        },
       },
     },
     "/admin/users": {

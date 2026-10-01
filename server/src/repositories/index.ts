@@ -1,17 +1,19 @@
 import { createMemoryUserRepository } from "./memory/memoryUserRepository.js";
 import { createMemorySessionRepository } from "./memory/memorySessionRepository.js";
+import { createMemoryMenuRepository } from "./memory/memoryMenuRepository.js";
 
 /* ---------------------------------------------------------------
    Repository wiring
 
    The only file that knows which storage is in use. To move to real
    databases, add PostgreSQL and Redis implementations of the
-   contracts in types.ts and swap the two factories below — services,
+   contracts in types.ts and swap the factories below — services,
    controllers and middleware never import an implementation.
 ----------------------------------------------------------------*/
 
 export const userRepository = createMemoryUserRepository();
 export const sessionRepository = createMemorySessionRepository();
+export const menuRepository = createMemoryMenuRepository();
 
 export type RepositoryBackend = "memory" | "postgres-redis";
 
@@ -19,5 +21,9 @@ export type RepositoryBackend = "memory" | "postgres-redis";
 export const repositoryBackend = "memory" as RepositoryBackend;
 
 export async function closeRepositories(): Promise<void> {
-  await Promise.all([userRepository.close(), sessionRepository.close()]);
+  await Promise.all([
+    userRepository.close(),
+    sessionRepository.close(),
+    menuRepository.close(),
+  ]);
 }

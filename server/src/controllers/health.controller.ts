@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { mongoStatus } from "../database/mongo.js";
 import { moduleLogger } from "../logger/logger.js";
-import { sessionRepository, userRepository } from "../repositories/index.js";
+import {
+  menuRepository,
+  sessionRepository,
+  userRepository,
+} from "../repositories/index.js";
 
 /* ---------------------------------------------------------------
    Health probes
@@ -56,11 +60,12 @@ export function liveness(_req: Request, res: Response) {
 }
 
 export async function readiness(_req: Request, res: Response) {
-  const [users, sessions] = await Promise.all([
+  const [users, sessions, menus] = await Promise.all([
     probe("users", () => userRepository.ping()),
     probe("sessions", () => sessionRepository.ping()),
+    probe("menus", () => menuRepository.ping()),
   ]);
-  const checks = { users, sessions, mongo: mongoCheck() };
+  const checks = { users, sessions, menus, mongo: mongoCheck() };
 
   const ready = Object.values(checks).every((result) => result !== "down");
   res.status(ready ? 200 : 503).json({

@@ -12,7 +12,7 @@ describe("health probes", () => {
     const res = await request(newClient().app).get("/ready").expect(200);
     expect(res.body).toEqual({
       status: "ready",
-      checks: { users: "up", sessions: "up", mongo: "disabled" },
+      checks: { users: "up", sessions: "up", menus: "up", mongo: "disabled" },
     });
   });
 });
