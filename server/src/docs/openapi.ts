@@ -5,7 +5,7 @@ import {
   REFRESH_COOKIE,
 } from "../config/cookies.js";
 import { API_PREFIX, PAGINATION } from "../constants/http.js";
-import { ERROR_CODES } from "../constants/errorCodes.js";
+import { ERROR_CODES, type ErrorCode } from "../constants/errorCodes.js";
 import { ROLES } from "../constants/roles.js";
 import {
   changePasswordSchema,
@@ -28,10 +28,44 @@ const json = (schema: unknown) => ({ "application/json": { schema } });
 
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 
-const errorResponse = (description: string, codes: string[]) => ({
-  description: `${description}. Possible codes: ${codes.join(", ")}.`,
-  content: json(ref("Error")),
-});
+// What each code's message typically says, for the per-response examples.
+const EXAMPLE_MESSAGES: Partial<Record<ErrorCode, string>> = {
+  [ERROR_CODES.VALIDATION_FAILED]: "Validation failed",
+  [ERROR_CODES.AUTHENTICATION_REQUIRED]: "Not authenticated",
+  [ERROR_CODES.INVALID_CREDENTIALS]: "Invalid email or password",
+  [ERROR_CODES.SESSION_REVOKED]: "Session expired, please sign in again",
+  [ERROR_CODES.FORBIDDEN]: "You do not have access to this resource",
+  [ERROR_CODES.EMAIL_TAKEN]: "An account with this email already exists",
+  [ERROR_CODES.MENU_NOT_FOUND]: "No menu is available for this restaurant",
+  [ERROR_CODES.RATE_LIMITED]: "Too many requests, try again later",
+};
+
+const EXAMPLE_REQUEST_ID = "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c";
+
+// Every error response gets its own example, built from its first code,
+// so the 404 on a menu shows MENU_NOT_FOUND rather than a generic sample.
+const errorResponse = (
+  description: string,
+  codes: [ErrorCode, ...ErrorCode[]],
+) => {
+  const [code] = codes;
+  const example = {
+    success: false,
+    error: {
+      code,
+      message: EXAMPLE_MESSAGES[code] ?? description,
+      ...(code === ERROR_CODES.VALIDATION_FAILED
+        ? { details: [{ field: "email", message: "Enter a valid email" }] }
+        : {}),
+    },
+    requestId: EXAMPLE_REQUEST_ID,
+  };
+
+  return {
+    description: `${description}. Possible codes: ${codes.join(", ")}.`,
+    content: { "application/json": { schema: ref("Error"), example } },
+  };
+};
 
 const userEnvelope = {
   description: "The signed-in user",
@@ -172,15 +206,6 @@ export const openApiDocument = {
           },
           requestId: { type: "string" },
         },
-        example: {
-          success: false,
-          error: {
-            code: "VALIDATION_FAILED",
-            message: "Validation failed",
-            details: [{ field: "email", message: "Enter a valid email" }],
-          },
-          requestId: "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c",
-        },
       },
     },
   },
@@ -291,7 +316,8 @@ export const openApiDocument = {
             name: "restaurantId",
             in: "path",
             required: true,
-            schema: { type: "string", pattern: "^\\d{1,12}$" },
+            description: "Numeric restaurant id, e.g. 47120",
+            schema: { type: "string", example: "47120" },
           },
         ],
         responses: {

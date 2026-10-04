@@ -1,0 +1,1075 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Swimato API",
+    "version": "1.0.0",
+    "description": "Authentication is cookie-based: sign up or log in and the browser stores two HttpOnly cookies that it sends automatically. When a request returns 401, call POST /auth/refresh once and retry. State-changing requests from a browser must come from an allowed Origin. Every error has the shape { success: false, error: { code, message, details? }, requestId }; branch on `code`, not `message`."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Restaurants"
+    },
+    {
+      "name": "Admin"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "accessCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "swimato_access"
+      },
+      "refreshCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "swimato_refresh"
+      }
+    },
+    "schemas": {
+      "RestaurantSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "city",
+          "areaName",
+          "cuisines"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "47120"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "areaName": {
+            "type": "string"
+          },
+          "cuisines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MenuItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "imageId",
+          "isVeg",
+          "pricePaise",
+          "rating",
+          "ratingCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Swiggy CDN image id"
+          },
+          "isVeg": {
+            "type": "boolean"
+          },
+          "pricePaise": {
+            "type": "integer",
+            "description": "Price in paise (₹1 = 100)",
+            "example": 18900
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 5
+          },
+          "ratingCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "MenuCategory": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuItem"
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "success",
+          "error",
+          "requestId"
+        ],
+        "properties": {
+          "success": {
+            "const": false
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "VALIDATION_FAILED",
+                  "INVALID_JSON",
+                  "PAYLOAD_TOO_LARGE",
+                  "AUTHENTICATION_REQUIRED",
+                  "INVALID_CREDENTIALS",
+                  "SESSION_REVOKED",
+                  "FORBIDDEN",
+                  "ORIGIN_NOT_ALLOWED",
+                  "RESOURCE_NOT_FOUND",
+                  "MENU_NOT_FOUND",
+                  "ROUTE_NOT_FOUND",
+                  "EMAIL_TAKEN",
+                  "CONFLICT",
+                  "RATE_LIMITED",
+                  "DATABASE_ERROR",
+                  "EXTERNAL_SERVICE_ERROR",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "field",
+                    "message"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "requestId": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/signup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create an account and sign in",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 50
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                },
+                "required": [
+                  "name",
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The signed-in user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "user"
+                      ],
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "swimato_access (path /, 15 min) and swimato_refresh (path /api/v1/auth, 7 days), both HttpOnly.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input. Possible codes: VALIDATION_FAILED, INVALID_JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": "Validation failed",
+                    "details": [
+                      {
+                        "field": "email",
+                        "message": "Enter a valid email"
+                      }
+                    ]
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email already registered. Possible codes: EMAIL_TAKEN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "EMAIL_TAKEN",
+                    "message": "An account with this email already exists"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit hit. Possible codes: RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests, try again later"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The signed-in user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "user"
+                      ],
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "swimato_access (path /, 15 min) and swimato_refresh (path /api/v1/auth, 7 days), both HttpOnly.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input. Possible codes: VALIDATION_FAILED, INVALID_JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": "Validation failed",
+                    "details": [
+                      {
+                        "field": "email",
+                        "message": "Enter a valid email"
+                      }
+                    ]
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong email or password. Possible codes: INVALID_CREDENTIALS.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "INVALID_CREDENTIALS",
+                    "message": "Invalid email or password"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit hit. Possible codes: RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests, try again later"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Rotate the refresh token and issue a new access token",
+        "security": [
+          {
+            "refreshCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "user"
+                      ],
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "swimato_access (path /, 15 min) and swimato_refresh (path /api/v1/auth, 7 days), both HttpOnly.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token missing, invalid or reused. Possible codes: AUTHENTICATION_REQUIRED, SESSION_REVOKED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "AUTHENTICATION_REQUIRED",
+                    "message": "Not authenticated"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit hit. Possible codes: RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests, try again later"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "End this session and clear cookies (always succeeds)",
+        "responses": {
+          "204": {
+            "description": "Signed out"
+          }
+        }
+      }
+    },
+    "/auth/logout-all": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "End every session of the current user",
+        "security": [
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "All sessions ended"
+          },
+          "401": {
+            "description": "Not signed in, or the session ended. Possible codes: AUTHENTICATION_REQUIRED, SESSION_REVOKED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "AUTHENTICATION_REQUIRED",
+                    "message": "Not authenticated"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password": {
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Change password; ends every other session",
+        "security": [
+          {
+            "accessCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                },
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed"
+          },
+          "400": {
+            "description": "Invalid input. Possible codes: VALIDATION_FAILED, INVALID_JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": "Validation failed",
+                    "details": [
+                      {
+                        "field": "email",
+                        "message": "Enter a valid email"
+                      }
+                    ]
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or current password wrong. Possible codes: AUTHENTICATION_REQUIRED, SESSION_REVOKED, INVALID_CREDENTIALS.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "AUTHENTICATION_REQUIRED",
+                    "message": "Not authenticated"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit hit. Possible codes: RATE_LIMITED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests, try again later"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "The signed-in user",
+        "security": [
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The signed-in user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "user"
+                      ],
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session ended. Possible codes: AUTHENTICATION_REQUIRED, SESSION_REVOKED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "AUTHENTICATION_REQUIRED",
+                    "message": "Not authenticated"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/restaurants/{restaurantId}/menu": {
+      "get": {
+        "tags": [
+          "Restaurants"
+        ],
+        "summary": "A restaurant's menu, grouped into categories (public)",
+        "description": "Until every restaurant has its own menu, a restaurant without one gets the sample menu of restaurant 47120, with `isSample: true` and `menuOf` naming the real owner. Cacheable for 5 minutes.",
+        "parameters": [
+          {
+            "name": "restaurantId",
+            "in": "path",
+            "required": true,
+            "description": "Numeric restaurant id, e.g. 47120",
+            "schema": {
+              "type": "string",
+              "example": "47120"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The menu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "restaurantId",
+                        "isSample",
+                        "menuOf",
+                        "categories"
+                      ],
+                      "properties": {
+                        "restaurantId": {
+                          "type": "string"
+                        },
+                        "isSample": {
+                          "type": "boolean"
+                        },
+                        "menuOf": {
+                          "$ref": "#/components/schemas/RestaurantSummary"
+                        },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MenuCategory"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input. Possible codes: VALIDATION_FAILED, INVALID_JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": "Validation failed",
+                    "details": [
+                      {
+                        "field": "email",
+                        "message": "Enter a valid email"
+                      }
+                    ]
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No menu available. Possible codes: MENU_NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "MENU_NOT_FOUND",
+                    "message": "No menu is available for this restaurant"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List users, oldest first (admin only)",
+        "security": [
+          {
+            "accessCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque; pass back `nextCursor` from the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "users",
+                        "nextCursor"
+                      ],
+                      "properties": {
+                        "users": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        },
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input. Possible codes: VALIDATION_FAILED, INVALID_JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": "Validation failed",
+                    "details": [
+                      {
+                        "field": "email",
+                        "message": "Enter a valid email"
+                      }
+                    ]
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session ended. Possible codes: AUTHENTICATION_REQUIRED, SESSION_REVOKED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "AUTHENTICATION_REQUIRED",
+                    "message": "Not authenticated"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an admin. Possible codes: FORBIDDEN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "success": false,
+                  "error": {
+                    "code": "FORBIDDEN",
+                    "message": "You do not have access to this resource"
+                  },
+                  "requestId": "3f1c2b9e-5a7d-4e2a-9c1b-2d4e6f8a0b1c"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
