@@ -39,9 +39,21 @@ const schema = z
 
     API_DOCS_ENABLED: boolish("true"),
 
-    // Optional while auth runs on in-memory repositories; when set,
-    // boot still fails fast if the cluster is unreachable.
+    // Optional; when set, boot fails fast if the cluster is unreachable.
     MONGO_URI: optionalString,
+
+    // PostgreSQL. When unset, menus are served from the in-memory seed
+    // (tests, quick local runs); when set, from the database.
+    DATABASE_URL: optionalString.refine(
+      (value) => value === undefined || /^postgres(ql)?:\/\//.test(value),
+      "DATABASE_URL must start with postgres:// or postgresql://",
+    ),
+    // Per instance. Postgres allows ~100 connections in total, shared by
+    // every API instance plus migrations and admin tools.
+    DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+    // A runaway query is cancelled by the server instead of holding a
+    // connection (and the request) indefinitely.
+    DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
 
     // Browser origins allowed to call the API with credentials. The
     // same list drives CORS and the CSRF origin check.

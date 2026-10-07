@@ -3,7 +3,7 @@ import { createApp } from "./app.js";
 import { env, isProduction } from "./config/env.js";
 import { connectMongo, disconnectMongo } from "./database/mongo.js";
 import { logger } from "./logger/logger.js";
-import { closeRepositories, repositoryBackend } from "./repositories/index.js";
+import { closeRepositories, storage } from "./repositories/index.js";
 import { seedAdmin } from "./services/auth.service.js";
 
 /* ---------------------------------------------------------------
@@ -28,9 +28,10 @@ let shuttingDown = false;
 async function start(): Promise<void> {
   await connectMongo();
 
-  if (repositoryBackend === "memory" && isProduction) {
+  logger.info({ storage }, "storage backends");
+  if (isProduction && storage.users === "memory") {
     logger.warn(
-      "in-memory repositories in production: users and sessions are lost on restart and not shared between instances",
+      "in-memory users and sessions in production: lost on restart and not shared between instances",
     );
   }
 
