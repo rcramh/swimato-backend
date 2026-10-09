@@ -1,4 +1,5 @@
 import { rateLimit, type Options } from "express-rate-limit";
+import { env } from "../config/env.js";
 import { RateLimitError } from "../errors/AppError.js";
 
 /* ---------------------------------------------------------------
@@ -34,6 +35,15 @@ const createLimiter = ({
     handler: ((_req, _res, next) => {
       next(new RateLimitError(message));
     }) satisfies Options["handler"],
+  });
+
+// Every /api/v1 request counts here first; auth routes then also hit
+// their own, much tighter limits below.
+export const createApiLimiter = () =>
+  createLimiter({
+    windowMinutes: env.API_RATE_LIMIT_WINDOW_MIN,
+    limit: env.API_RATE_LIMIT_MAX,
+    message: "Too many requests, slow down and try again shortly",
   });
 
 export const createAuthLimiters = () => ({

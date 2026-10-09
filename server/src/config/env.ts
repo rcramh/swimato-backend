@@ -73,6 +73,12 @@ const schema = z
     // hurt offline cracking, fast enough not to stall a login.
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 
+    // Overall per-IP budget for every /api/v1 route, on top of the
+    // stricter per-route limits on auth. Generous for a person using the
+    // app; stops one client flooding the API.
+    API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+    API_RATE_LIMIT_WINDOW_MIN: z.coerce.number().int().positive().default(5),
+
     // Optional first admin, created at boot if the email is not taken.
     // Signup only ever creates plain users, so this is the way in.
     SEED_ADMIN_EMAIL: optionalString,

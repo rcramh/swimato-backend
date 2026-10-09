@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { env } from "../config/env.js";
 import {
   REFRESH_COOKIE_PATH,
   ACCESS_COOKIE,
@@ -109,6 +110,7 @@ export const openApiDocument = {
       "Authentication is cookie-based: sign up or log in and the browser stores two HttpOnly cookies that it sends automatically. " +
       "When a request returns 401, call POST /auth/refresh once and retry. " +
       "State-changing requests from a browser must come from an allowed Origin. " +
+      `Each client IP may make ${env.API_RATE_LIMIT_MAX} requests per ${env.API_RATE_LIMIT_WINDOW_MIN} minutes across the API (429 RATE_LIMITED; see the RateLimit response headers), and auth routes have tighter limits. ` +
       "Every error has the shape { success: false, error: { code, message, details? }, requestId }; branch on `code`, not `message`.",
   },
   servers: [{ url: API_PREFIX }],

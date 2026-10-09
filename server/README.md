@@ -56,6 +56,27 @@ tests/                   API and unit tests
 
 Both cookies are `HttpOnly`, and `Secure` in production. Each refresh rotates the refresh token. Replaying a rotated-out token after a 15 s grace window revokes the session. Every authenticated request also checks that its session still exists, so logout, logout-all and password change take effect immediately. State-changing requests from a browser must come from an origin in `CLIENT_ORIGIN`.
 
+## Database (PostgreSQL)
+
+Menus are stored in PostgreSQL when `DATABASE_URL` is set, otherwise served from the seed file in memory. The schema is in `src/database/schema.ts`; migrations are generated SQL in `drizzle/`, committed and reviewed like code.
+
+```
+restaurants 1──* menu_categories 1──* menu_items
+```
+
+- Money is integer paise; ratings are `numeric(2,1)`; timestamps are `timestamptz`.
+- Invariants are `CHECK` constraints and foreign keys in the database. For example, a composite FK guarantees an item's category belongs to the same restaurant.
+- Rows are switched off (`is_active`, `is_available`) rather than deleted, because orders will reference items.
+
+| Script                | What it does                                               |
+| --------------------- | ---------------------------------------------------------- |
+| `npm run db:generate` | After editing `schema.ts`: write a new migration           |
+| `npm run db:migrate`  | Apply pending migrations (a deploy step, not on boot)      |
+| `npm run db:seed`     | Load `src/database/seed/restaurantMenus.json`; re-runnable |
+| `npm run db:studio`   | Browse the database in Drizzle Studio                      |
+
+Integration tests in `tests/postgresMenuRepository.test.ts` run when `TEST_DATABASE_URL` is set and skip otherwise.
+
 ## Health
 
 - `GET /health`: liveness. The process is up; dependencies are not checked.
@@ -63,4 +84,4 @@ Both cookies are `HttpOnly`, and `Secure` in production. Each refresh rotates th
 
 ## Current limitations
 
-Users and sessions live in **in-memory repositories**: they are lost on restart and not shared between instances. The rate-limit counters are also in process memory. PostgreSQL (users) and Redis (sessions, rate limits) implementations of the contracts in `src/repositories/types.ts` are the next step.
+Users and sessions still live in **in-memory repositories**: they are lost on restart and not shared between instances. The rate-limit counters are also in process memory. PostgreSQL (users) and Redis (sessions, rate limits) implementations of the contracts in `src/repositories/types.ts` are the next step.

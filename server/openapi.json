@@ -3,7 +3,7 @@
   "info": {
     "title": "Swimato API",
     "version": "1.0.0",
-    "description": "Authentication is cookie-based: sign up or log in and the browser stores two HttpOnly cookies that it sends automatically. When a request returns 401, call POST /auth/refresh once and retry. State-changing requests from a browser must come from an allowed Origin. Every error has the shape { success: false, error: { code, message, details? }, requestId }; branch on `code`, not `message`."
+    "description": "Authentication is cookie-based: sign up or log in and the browser stores two HttpOnly cookies that it sends automatically. When a request returns 401, call POST /auth/refresh once and retry. State-changing requests from a browser must come from an allowed Origin. Each client IP may make 300 requests per 5 minutes across the API (429 RATE_LIMITED; see the RateLimit response headers), and auth routes have tighter limits. Every error has the shape { success: false, error: { code, message, details? }, requestId }; branch on `code`, not `message`."
   },
   "servers": [
     {
